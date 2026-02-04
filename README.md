@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Chat Streaming Demo
 
-## Getting Started
+A modern SaaS-style dashboard application built with Next.js 15 (App Router), Tailwind CSS v4, and TypeScript. This project demonstrates a premium "protected" layout typically found in enterprise AI chat applications.
 
-First, run the development server:
+## ⚡ Features
+
+- **Next.js App Router**: Leveraging React Server Components and nested layouts.
+- **Tailwind CSS v4**: Utilizing the new engine with CSS variable-based theme configuration.
+- **Premium UI**: 
+  - Dark mode first aesthetic.
+  - Glassmorphism effects and sophisticated color palettes (`#0dccf2` primary).
+  - Custom scrollbars as neon effects.
+- **Responsive Layout**:
+  - Collapsible sidebar.
+  - Sticky header with detailed session info.
+- **Streaming Chat Interface**:
+  - Simulated active streaming UI state.
+  - Leaky bucket algorithm visualization in chat content.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js 16](https://nextjs.org/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Fonts**: [Inter](https://fonts.google.com/specimen/Inter) & [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono)
+- **Icons**: [Material Symbols](https://fonts.google.com/icons)
+
+## 🚀 Getting Started
+
+1.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+
+2.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
+
+3.  **Open the application**:
+    Visit [http://localhost:3000](http://localhost:3000) to see the dashboard.
+
+## 📂 Project Structure
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+src/
+├── app/
+│   ├── (dashboard)/      # Protected route group
+│   │   ├── layout.tsx    # Dashboard shell (Sidebar + Header)
+│   │   └── page.tsx      # Main chat interface
+│   ├── globals.css       # Tailwind v4 theme & global styles
+│   └── layout.tsx        # Root layout with font configuration
+├── components/
+│   └── dashboard/
+│       ├── Header.tsx    # Top navigation bar
+│       └── Sidebar.tsx   # Left navigation sidebar
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎨 Design System
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The project uses a custom color palette defined in `src/app/globals.css`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Primary**: Cyan (`#0dccf2`)
+- **Background**: Deep Charcoal (`#101f22`)
+- **Surface**: Dark Blue-Grey (`#16282c`)
+- **Typography**: Inter (UI) and JetBrains Mono (Code)
