@@ -16,9 +16,19 @@ create table messages (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Create "user_usage" table for rate limiting
+create table user_usage (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null unique,
+  message_count integer default 0 not null,
+  last_reset_at date default current_date not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Enable RLS
 alter table chats enable row level security;
 alter table messages enable row level security;
+alter table user_usage enable row level security;
 
 -- Policies (Users can only see their own data)
 create policy "Users can select own chats" on chats for select using (auth.uid() = user_id);
@@ -32,3 +42,8 @@ create policy "Users can select own messages" on messages for select using (
 create policy "Users can insert own messages" on messages for insert with check (
   exists (select 1 from chats where chats.id = messages.chat_id and chats.user_id = auth.uid())
 );
+
+-- User usage policies
+create policy "Users can select own usage" on user_usage for select using (auth.uid() = user_id);
+create policy "Users can insert own usage" on user_usage for insert with check (auth.uid() = user_id);
+create policy "Users can update own usage" on user_usage for update using (auth.uid() = user_id);

@@ -19,6 +19,7 @@ export function ChatInterface({
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingContent, setStreamingContent] = useState("");
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -47,6 +48,9 @@ export function ChatInterface({
         setIsStreaming(true);
         setStreamingContent("");
 
+        // Create new abort controller for this request
+        abortControllerRef.current = new AbortController();
+
         try {
             const response = await fetch("/api/chat", {
                 method: "POST",
@@ -55,7 +59,25 @@ export function ChatInterface({
                     chatId,
                     message: userMessage,
                 }),
+                signal: abortControllerRef.current.signal,
             });
+
+            // Handle rate limit exceeded
+            if (response.status === 429) {
+                const errorData = await response.json();
+                // Remove the optimistic user message
+                setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+                // Show rate limit error as a system message
+                const errorMessage: Message = {
+                    id: `error-${Date.now()}`,
+                    chat_id: chatId,
+                    role: "assistant",
+                    content: `⚠️ **Daily Limit Reached**\n\nYou've used all ${errorData.limit || 50} messages for today. Your limit will reset at midnight UTC.\n\nUpgrade to Pro for unlimited messages.`,
+                    created_at: new Date().toISOString(),
+                };
+                setMessages((prev) => [...prev, errorMessage]);
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error("Failed to send message");
@@ -66,36 +88,68 @@ export function ChatInterface({
             let fullContent = "";
 
             if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    fullContent += chunk;
-                    setStreamingContent(fullContent);
+                        const chunk = decoder.decode(value, { stream: true });
+                        fullContent += chunk;
+                        setStreamingContent(fullContent);
+                    }
+                } catch (readError) {
+                    // If aborted, we still want to save the partial content
+                    if ((readError as Error).name === "AbortError") {
+                        console.log("Stream aborted by user");
+                    } else {
+                        throw readError;
+                    }
+                } finally {
+                    reader.releaseLock();
                 }
             }
 
-            // Add the complete assistant message
-            const assistantMessage: Message = {
-                id: `temp-assistant-${Date.now()}`,
-                chat_id: chatId,
-                role: "assistant",
-                content: fullContent,
-                created_at: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMessage]);
+            // Add the complete (or partial if stopped) assistant message
+            if (fullContent) {
+                const assistantMessage: Message = {
+                    id: `temp-assistant-${Date.now()}`,
+                    chat_id: chatId,
+                    role: "assistant",
+                    content: fullContent,
+                    created_at: new Date().toISOString(),
+                };
+                setMessages((prev) => [...prev, assistantMessage]);
+            }
         } catch (error) {
-            console.error("Error sending message:", error);
+            if ((error as Error).name === "AbortError") {
+                // Handle abort - save partial content if any
+                const currentContent = streamingContent;
+                if (currentContent) {
+                    const assistantMessage: Message = {
+                        id: `temp-assistant-${Date.now()}`,
+                        chat_id: chatId,
+                        role: "assistant",
+                        content: currentContent + "\n\n*[Generation stopped]*",
+                        created_at: new Date().toISOString(),
+                    };
+                    setMessages((prev) => [...prev, assistantMessage]);
+                }
+            } else {
+                console.error("Error sending message:", error);
+                // Remove optimistic message on error
+                setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+            }
         } finally {
             setIsStreaming(false);
             setStreamingContent("");
+            abortControllerRef.current = null;
         }
     };
 
     const handleStop = () => {
-        // TODO: Implement abort controller for stopping generation
-        setIsStreaming(false);
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
     };
 
     const copyToClipboard = (text: string) => {

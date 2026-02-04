@@ -3,8 +3,13 @@ import { ChatInterface } from "@/components/dashboard/ChatInterface";
 import { redirect } from "next/navigation";
 import type { Message } from "@/types";
 
-export default async function DashboardPage() {
+interface PageProps {
+    searchParams: Promise<{ chat?: string; new?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
     const supabase = await createClient();
+    const { chat: requestedChatId, new: createNew } = await searchParams;
 
     const {
         data: { user },
@@ -14,19 +19,10 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
-    // Get or create the current chat
-    // For now, we'll use the most recent chat or create a new one
-    let { data: chats } = await supabase
-        .from("chats")
-        .select("id")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(1);
-
     let chatId: string;
 
-    if (!chats || chats.length === 0) {
-        // Create a new chat
+    // If creating a new chat
+    if (createNew === "true") {
         const { data: newChat, error } = await supabase
             .from("chats")
             .insert({
@@ -39,9 +35,52 @@ export default async function DashboardPage() {
         if (error || !newChat) {
             throw new Error("Failed to create chat");
         }
-        chatId = newChat.id;
+        // Redirect to the new chat (removes ?new=true from URL)
+        redirect(`/?chat=${newChat.id}`);
+    }
+
+    // If a specific chat is requested, verify it exists and belongs to the user
+    if (requestedChatId) {
+        const { data: chat } = await supabase
+            .from("chats")
+            .select("id")
+            .eq("id", requestedChatId)
+            .eq("user_id", user.id)
+            .single();
+
+        if (chat) {
+            chatId = chat.id;
+        } else {
+            // Chat not found or doesn't belong to user, redirect to default
+            redirect("/");
+        }
     } else {
-        chatId = chats[0].id;
+        // Get or create the most recent chat
+        const { data: chats } = await supabase
+            .from("chats")
+            .select("id")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+
+        if (!chats || chats.length === 0) {
+            // Create a new chat
+            const { data: newChat, error } = await supabase
+                .from("chats")
+                .insert({
+                    user_id: user.id,
+                    title: null,
+                })
+                .select("id")
+                .single();
+
+            if (error || !newChat) {
+                throw new Error("Failed to create chat");
+            }
+            chatId = newChat.id;
+        } else {
+            chatId = chats[0].id;
+        }
     }
 
     // Fetch messages for this chat
@@ -53,6 +92,7 @@ export default async function DashboardPage() {
 
     return (
         <ChatInterface
+            key={chatId}
             initialMessages={(messages as Message[]) || []}
             chatId={chatId}
         />

@@ -1,17 +1,27 @@
 # AI Chat Streaming Demo
 
-A modern AI chat application with real-time streaming responses, built with Next.js 16, Supabase, and the Vercel AI SDK. Features a premium SaaS-style dashboard UI with authentication and message persistence.
+A modern AI chat application with real-time streaming responses, built with Next.js 16, Supabase, and the Vercel AI SDK. Features a premium SaaS-style dashboard UI with authentication, message persistence, and rate limiting.
+
+## Architectural Decisions
+
+- **Streaming**: Implemented using the `ReadableStream` API and the `AbortController` API to allow for cancellation of the stream
+- **Authentication**: Secure email/password auth using Supabase Auth with RLS policies
+- **Message Persistence**: Chat history stored in Supabase PostgreSQL with Row Level Security
+- **Rate Limiting**: Daily message limits tracked per user with automatic reset at midnight UTC
 
 ## ⚡ Features
 
 - **Real-time AI Streaming**: Live token-by-token response streaming using Groq's LLaMA 3.3 70B model
+- **Stop Generation**: Cancel AI responses mid-stream with AbortController
 - **Authentication**: Secure user auth with Supabase (email/password)
 - **Message Persistence**: Chat history saved to Supabase PostgreSQL database
+- **Rate Limiting**: 10 messages/day limit per user (configurable)
+- **Chat Management**: Create new chats, switch between conversations
 - **Premium UI**: 
   - Dark mode first aesthetic with glassmorphism effects
   - Custom neon-styled scrollbars and animations
   - Blinking cursor during streaming
-- **Responsive Layout**: Collapsible sidebar with chat history
+- **Responsive Layout**: Collapsible sidebar with grouped chat history (Today/Yesterday/Previous)
 
 ## 🛠️ Tech Stack
 
@@ -51,7 +61,7 @@ A modern AI chat application with real-time streaming responses, built with Next
    ```
 
 3. **Set up Supabase database**:
-   Run the SQL from `supabase/schema.sql` in your Supabase SQL Editor to create the `chats` and `messages` tables with Row Level Security.
+   Run the SQL from `supabase/schema.sql` in your Supabase SQL Editor to create the `chats`, `messages`, and `user_usage` tables with Row Level Security.
 
 4. **Run the development server**:
    ```bash
@@ -67,11 +77,12 @@ A modern AI chat application with real-time streaming responses, built with Next
 src/
 ├── app/
 │   ├── (dashboard)/          # Protected route group
+│   │   ├── actions.ts        # Chat server actions (create/delete)
 │   │   ├── layout.tsx        # Dashboard shell (Sidebar + Header)
 │   │   └── page.tsx          # Main chat interface (server component)
 │   ├── api/
 │   │   └── chat/
-│   │       └── route.ts      # AI streaming endpoint
+│   │       └── route.ts      # AI streaming endpoint + rate limiting
 │   ├── login/
 │   │   ├── page.tsx          # Login/signup page
 │   │   └── actions.ts        # Auth server actions
@@ -89,17 +100,6 @@ src/
 ├── middleware.ts             # Auth middleware for protected routes
 └── types.ts                  # TypeScript interfaces
 ```
-
-## 🎨 Design System
-
-Custom color palette defined in `src/app/globals.css`:
-
-| Token | Color | Usage |
-|-------|-------|-------|
-| Primary | `#0dccf2` (Cyan) | Buttons, links, accents |
-| Background | `#101f22` | Page background |
-| Surface | `#16282c` | Cards, sidebar |
-| Warning | `#f59e0b` | Stop button, alerts |
 
 ## 🔐 Database Schema
 
@@ -121,9 +121,28 @@ create table messages (
   content text,
   created_at timestamptz
 );
+
+-- User usage table (rate limiting)
+create table user_usage (
+  id uuid primary key,
+  user_id uuid references auth.users unique,
+  message_count integer default 0,
+  last_reset_at date default current_date,
+  updated_at timestamptz
+);
 ```
 
-Both tables have Row Level Security (RLS) enabled so users can only access their own data.
+All tables have Row Level Security (RLS) enabled so users can only access their own data.
+
+## ⚙️ Configuration
+
+### Rate Limiting
+
+Modify the daily message limit in `src/app/api/chat/route.ts`:
+
+```typescript
+const DAILY_MESSAGE_LIMIT = 10; // Change this value
+```
 
 ## 📝 License
 
