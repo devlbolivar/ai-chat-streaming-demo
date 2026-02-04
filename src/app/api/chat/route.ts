@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import { streamText } from "ai";
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest } from "next/server";
@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
             content: msg.content,
         }));
 
-        // Stream AI response
+        // Stream AI response using Groq (llama-3.3-70b-versatile is fast and capable)
         const result = streamText({
-            model: google("gemini-2.0-flash"),
+            model: groq("llama-3.3-70b-versatile"),
             messages,
             onFinish: async ({ text }) => {
                 // Save assistant response to database
